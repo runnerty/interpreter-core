@@ -13,7 +13,7 @@ function interpreter(inputObject, objParams = {}, options, maxSize, globalValues
 
     if (objParams && Object.keys(objParams).length !== 0) {
       if (!objParams.objParamsIsReplaced) {
-        objParams.objParamsReplaced = await recursiveObjectInterpreter(objParams, {}, options);
+        objParams.objParamsReplaced = await interpreter(objParams, {}, options);
         objParams.objParamsIsReplaced = true;
         params = objParams.objParamsReplaced;
       } else {
@@ -32,7 +32,7 @@ function interpreter(inputObject, objParams = {}, options, maxSize, globalValues
       if (inputObject instanceof Array) {
         const promArr = [];
         for (let i = 0; i < inputObject.length; i++) {
-          promArr.push(recursiveObjectInterpreter(inputObject[i], objParams, options));
+          promArr.push(interpreter(inputObject[i], objParams, options));
         }
         Promise.all(promArr).then(values => {
           resolve(values);
@@ -43,7 +43,7 @@ function interpreter(inputObject, objParams = {}, options, maxSize, globalValues
           const resObject = {};
 
           for (const key of keys) {
-            const _value = await recursiveObjectInterpreter(inputObject[key], objParams, options);
+            const _value = await interpreter(inputObject[key], objParams, options);
             const _key = interpretSecure(objParams, key, params, options);
             resObject[_key] = _value;
           }

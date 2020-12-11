@@ -15,8 +15,8 @@
 
 
 [Runnerty]: http://www.runnerty.io
-[downloads-image]: https://img.shields.io/npm/dm/@runnerty/module-core.svg
-[npm-url]: https://www.npmjs.com/package/@runnerty/module-core
-[npm-image]: https://img.shields.io/npm/v/@runnerty/module-core.svg
-[david-badge]: https://david-dm.org/runnerty/module-core.svg
-[david-badge-url]: https://david-dm.org/runnerty/module-core
+[downloads-image]: https://img.shields.io/npm/dm/@runnerty/interpreter-core.svg
+[npm-url]: https://www.npmjs.com/package/@runnerty/interpreter-core
+[npm-image]: https://img.shields.io/npm/v/@runnerty/interpreter-core.svg
+[david-badge]: https://david-dm.org/runnerty/interpreter-core.svg
+[david-badge-url]: https://david-dm.org/runnerty/interpreter-core

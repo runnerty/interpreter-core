@@ -1,6 +1,6 @@
 {
   "name": "@runnerty/interpreter-core",
-  "version": "3.0.0",
+  "version": "3.0.0-alpha.0",
   "description": "Runnerty interpreter module",
   "author": "Runnerty Tech",
   "license": "MIT",
@@ -16,8 +16,6 @@
   "keywords": [
     "runnerty",
     "interpreter",
-    "executor",
-    "module",
     "core"
   ],
   "bugs": {

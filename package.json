@@ -1,6 +1,6 @@
 {
   "name": "@runnerty/interpreter-core",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Runnerty interpreter module",
   "author": "Runnerty Tech",
   "license": "MIT",
@@ -23,15 +23,15 @@
   },
   "homepage": "https://github.com/runnerty/interpreter-core#readme",
   "dependencies": {
-    "lodash": "4.17.20",
-    "moment": "2.29.1",
-    "object-sizeof": "1.6.1",
-    "uuid": "8.3.2"
+    "lodash": "~4.17.21",
+    "moment": "~2.29.1",
+    "object-sizeof": "~1.6.1",
+    "uuid": "~8.3.2"
   },
   "devDependencies": {
-    "eslint": "^7.17.0",
-    "eslint-config-prettier": "^7.1.0",
-    "eslint-plugin-prettier": "^3.3.0",
+    "eslint": "^7.20.0",
+    "eslint-config-prettier": "^8.1.0",
+    "eslint-plugin-prettier": "^3.3.1",
     "prettier": "^2.2.1"
   }
 }

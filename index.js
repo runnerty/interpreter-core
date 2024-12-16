@@ -1,19 +1,19 @@
-'use strict';
-
-const sizeof = require('object-sizeof');
-const interpret = require('./lib/interpreter.js');
+import sizeof from 'object-sizeof';
+import { interpret } from './lib/interpreter';
 
 // Recursive Object Interpreter:
-function interpreter(inputObject, objParams = {}, options, maxSize, globalValues) {
-  return new Promise(async resolve => {
-    let params;
-    if (maxSize && sizeof(inputObject) > maxSize) {
-      resolve(inputObject);
+export default class interpreter {
+  static globalValues = {};
+
+  static async interpret(inputObject, objParams, options, globalValues) {
+    let params = {};
+    if (options?.maxSize && sizeof(inputObject) > options.maxSize) {
+      return inputObject;
     }
 
     if (objParams && Object.keys(objParams).length !== 0) {
       if (!objParams.objParamsIsReplaced) {
-        objParams.objParamsReplaced = await interpreter(objParams, {}, options, maxSize, globalValues);
+        objParams.objParamsReplaced = await interpreter.interpret(objParams, {}, options, globalValues);
         objParams.objParamsIsReplaced = true;
         params = objParams.objParamsReplaced;
       } else {
@@ -21,124 +21,95 @@ function interpreter(inputObject, objParams = {}, options, maxSize, globalValues
       }
     }
 
-    if (globalValues && (!options || !options.ignoreGlobalValues)) {
-      params = await addGlobalValuesToObjParams(params, globalValues);
+    if (!options?.ignoreGlobalValues) {
+      if (globalValues && Object.keys(globalValues).length !== 0) {
+        await interpreter._addGlobalValues(interpreter.globalValues, globalValues);
+      }
+      if (Object.keys(interpreter.globalValues).length !== 0) {
+        await interpreter._addGlobalValues(params, interpreter.globalValues);
+      }
     }
 
     if (typeof inputObject === 'string') {
-      const res = interpretSecure(objParams, inputObject, params, options);
-      resolve(res);
-    } else {
-      if (inputObject instanceof Array) {
-        const promArr = [];
-        for (let i = 0; i < inputObject.length; i++) {
-          promArr.push(interpreter(inputObject[i], objParams, options, maxSize, globalValues));
-        }
-        Promise.all(promArr).then(values => {
-          resolve(values);
-        });
-      } else {
-        if (inputObject instanceof Object) {
-          const keys = Object.keys(inputObject);
-          const resObject = {};
-
-          for (const key of keys) {
-            const _value = await interpreter(inputObject[key], objParams, options, maxSize, globalValues);
-            const _key = interpretSecure(objParams, key, params, options);
-            resObject[_key] = _value;
-          }
-          resolve(resObject);
-        } else {
-          resolve(inputObject);
-        }
+      const res = await interpreter._interpretSecure(objParams, inputObject, params);
+      return res;
+    } else if (inputObject instanceof Array) {
+      const promArr = [];
+      for (const item of inputObject) {
+        promArr.push(await interpreter.interpret(item, objParams, options, globalValues));
       }
-    }
-  });
-}
+      return await Promise.all(promArr);
+    } else if (inputObject instanceof Object) {
+      const keys = Object.keys(inputObject);
+      const resObject = {};
 
-function addGlobalValuesToObjParams(objParams, globalValues) {
-  return new Promise(async resolve => {
-    const rw_options = {
-      ignoreGlobalValues: true
-    };
-    const gvs = globalValues;
+      for (const key of keys) {
+        const _value = await interpreter.interpret(inputObject[key], objParams, options, globalValues);
+        const _key = await interpreter._interpretSecure(objParams, key, params);
+        resObject[_key] = _value;
+      }
+      return resObject;
+    } else {
+      return inputObject;
+    }
+  }
+
+  static async _addGlobalValues(objParams, globalValues) {
     const res = {};
 
-    for (const gv of gvs) {
-      const keymaster = Object.keys(gv)[0];
-      const valueObjects = gv[keymaster];
-      const keysValueObjects = Object.keys(valueObjects);
+    const processTextFormat = intialValue => {
+      if (Array.isArray(intialValue.value)) {
+        const { value, quotechar = '', delimiter = '' } = intialValue;
+        return value.map((text, index) => quotechar + text + quotechar).join(delimiter);
+      }
+      return intialValue.value;
+    };
 
-      for (const valueKey of keysValueObjects) {
-        const intialValue = gv[keymaster][valueKey];
-
-        if (intialValue instanceof Object) {
-          if (intialValue.format === 'text') {
-            if (intialValue.value instanceof Array) {
-              let i = intialValue.value.length;
-              let finalValue = '';
-
-              for (const initValue of intialValue.value) {
-                i--;
-                const rtext = initValue;
-
-                const quotechar = intialValue.quotechar || '';
-                const delimiter = intialValue.delimiter || '';
-
-                if (i !== 0) {
-                  finalValue = finalValue + quotechar + rtext + quotechar + delimiter;
-                } else {
-                  finalValue = finalValue + quotechar + rtext + quotechar;
-                }
-              }
-
-              res[keymaster + '_' + valueKey] = finalValue;
-            } else {
-              const value = intialValue.value;
-              res[keymaster + '_' + valueKey] = value;
-            }
-          } else {
-            if (intialValue.format === 'json') {
-              if (intialValue.value instanceof Object || intialValue.value instanceof Array) {
-                res[keymaster + '_' + valueKey] = interpretSecure(
-                  objParams,
-                  JSON.stringify(intialValue.value),
-                  objParams,
-                  rw_options
-                );
-              } else {
-                res[keymaster + '_' + valueKey] = interpretSecure(
-                  objParams,
-                  JSON.stringify(intialValue.value),
-                  objParams,
-                  rw_options
-                );
-              }
-            }
-          }
-        } else {
-          res[keymaster + '_' + valueKey] = intialValue;
+    const processGlobalValue = async (key, intialValue, objParams) => {
+      if (intialValue instanceof Object) {
+        switch (intialValue.format) {
+          case 'text':
+            return processTextFormat(intialValue);
+          case 'json':
+            return await interpreter._interpretSecure(objParams, JSON.stringify(intialValue.value), objParams);
+          default:
+            return intialValue;
         }
       }
-    }
-    Object.assign(res, objParams);
-    resolve(res);
-  });
-}
+      return intialValue;
+    };
 
-function interpretSecure(objParams, inputObject, params, options) {
-  try {
-    const interpret_res = interpret(inputObject, params, options);
-    return interpret_res;
-  } catch (err) {
-    let msg = '';
-    if (objParams.CHAIN_ID) {
-      msg = 'CHAIN: ' + objParams.CHAIN_ID;
-    } else if ('' + objParams.PROCESS_ID) {
-      msg = ' PROCESS: ' + objParams.PROCESS_ID;
+    const processValues = async (values, prefix = '') => {
+      for (const key of Object.keys(values)) {
+        const intialValue = values[key];
+        res[prefix + key] = await processGlobalValue(key, intialValue, objParams);
+      }
+    };
+
+    if (Array.isArray(globalValues)) {
+      for (const gv of globalValues) {
+        const keymaster = Object.keys(gv)[0];
+        await processValues(gv[keymaster], keymaster + '_');
+      }
+    } else if (globalValues instanceof Object) {
+      await processValues(globalValues);
     }
-    throw new Error(`Interpreter:${msg} : ${err} IN: ${inputObject}`);
+
+    Object.assign(objParams, res);
+  }
+
+  static async _interpretSecure(objParams, inputObject, params) {
+    try {
+      const interpret_res = await interpret(inputObject, params);
+      return interpret_res;
+    } catch (err) {
+      let msg = '';
+      if (objParams?.CHAIN_ID) {
+        msg = 'CHAIN: ' + objParams.CHAIN_ID;
+      } else if ('' + objParams?.PROCESS_ID) {
+        msg = ' PROCESS: ' + objParams?.PROCESS_ID;
+      }
+      throw new Error(`Interpreter: ${msg}: ${err} IN: ${inputObject}`);
+    }
   }
 }
-
-module.exports = interpreter;

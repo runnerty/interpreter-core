@@ -921,21 +921,31 @@ async function for_of(values, obj) {
   const res = [];
   try {
     for (const value of values) {
-      const newObjRaw = await interpreter.interpret(obj, value);
-      const newObj = JSON.parse(newObjRaw, (k, v) => {
-        if (
-          typeof v === 'string' &&
-          ((v.startsWith('{') && v.endsWith('}')) || (v.startsWith('[') && v.endsWith(']')))
-        ) {
+      const newObjRaw = await interpreter.interpret(obj, value, { source: 'for_of' });
+      const newObjParsed = (obj => {
+        if (typeof obj === 'object') {
+          return obj;
+        } else {
           try {
-            return JSON.parse(v);
+            return JSON.parse(obj, (k, v) => {
+              if (
+                typeof v === 'string' &&
+                ((v.startsWith('{') && v.endsWith('}')) || (v.startsWith('[') && v.endsWith(']')))
+              ) {
+                try {
+                  return JSON.parse(v);
+                } catch (e) {
+                  return v;
+                }
+              }
+              return v;
+            });
           } catch (e) {
-            return v;
+            return obj;
           }
         }
-        return v;
-      });
-      res.push(newObj);
+      })(newObjRaw);
+      res.push(newObjParsed);
     }
     return res;
   } catch (ex) {
